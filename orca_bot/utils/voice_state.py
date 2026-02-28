@@ -66,6 +66,7 @@ class VoiceState:
         self.last_added_message = None
         self.lock = asyncio.Lock()
         self.last_activity = datetime.utcnow()
+        self._stopping = False
 
     async def add_song(self, song):
         await self.songs.put(song)
@@ -122,7 +123,10 @@ class VoiceState:
                         logging.info(f"Playing song: {self.current.source.title}")
                 except asyncio.TimeoutError:
                     logging.info("No more songs in the queue. Stopping playback.")
-                    await self.stop()
+                    await self.stop(
+                        queue_message_text="Bot disconnected from the voice channel due to inactivity.",
+                        channel_notice="Leaving voice channel due to inactivity.",
+                    )
                     return
 
             # If voice isn't connected yet, wait instead of crashing/spinning.
@@ -161,8 +165,75 @@ class VoiceState:
             logging.info("Skipping the current song...")
             self.voice.stop()
 
-    async def stop(self):
+    def _build_queue_embeds(self):
+        items_per_page = 10
+        pages = max(1, math.ceil(len(self.songs) / items_per_page))
+        embeds = []
+
+        if len(self.songs) == 0:
+            embeds.append(discord.Embed(description="**Empty queue.**"))
+            return embeds
+
+        for page in range(pages):
+            queue = ""
+            for i, song in enumerate(
+                self.songs[page * items_per_page : (page + 1) * items_per_page],
+                start=page * items_per_page,
+            ):
+                queue += "`{0}.` [**{1.source.title}**]({1.source.url})\n".format(i + 1, song)
+
+            embed = (
+                discord.Embed(description="**{} track(s):**\n\n{}".format(len(self.songs), queue))
+                .set_footer(text="Viewing page {}/{}".format(page + 1, pages))
+            )
+            embeds.append(embed)
+
+        return embeds
+
+    async def show_queue(self, page: int = 1):
+        channel = (self.queue_message.channel if self.queue_message else None) or self.text_channel or self._ctx.channel
+        if channel is None:
+            return None
+
+        embeds = self._build_queue_embeds()
+        current_page = max(0, min(page - 1, len(embeds) - 1))
+        view = QueuePages(self._ctx, embeds, current_page=current_page)
+
+        try:
+            if self.queue_message:
+                self.queue_message = await self.queue_message.edit(embed=embeds[current_page], view=view)
+            else:
+                self.queue_message = await channel.send(embed=embeds[current_page], view=view)
+        except discord.NotFound:
+            self.queue_message = await channel.send(embed=embeds[current_page], view=view)
+        except discord.errors.HTTPException as e:
+            if e.status == 401:
+                logging.error("Invalid Webhook Token. Unable to edit queue message.")
+                self.queue_message = await channel.send(embed=embeds[current_page], view=view)
+            else:
+                raise
+
+        view.message = self.queue_message
+        return self.queue_message
+
+    async def stop(
+        self,
+        *,
+        queue_message_text: str = "Bot disconnected from the voice channel. Stopping playback.",
+        channel_notice: str | None = None,
+    ):
+        if self._stopping:
+            return
+
+        self._stopping = True
         self.songs.clear()
+
+        channel = self.text_channel or self._ctx.channel
+        if channel_notice and channel and self.voice and self.voice.is_connected():
+            try:
+                await channel.send(channel_notice)
+            except Exception:
+                pass
 
         if self.voice:
             try:
@@ -194,44 +265,7 @@ class VoiceState:
     async def update_queue_message(self):
         if not self.first_song_played:
             return
-
-        ctx = self._ctx
-        items_per_page = 10
-        pages = max(1, math.ceil(len(self.songs) / items_per_page))
-        embeds = []
-
-        if len(self.songs) == 0:
-            embeds.append(discord.Embed(description='**Empty queue.**'))
-        else:
-            for page in range(pages):
-                queue = ''
-                for i, song in enumerate(
-                    self.songs[page * items_per_page : (page + 1) * items_per_page],
-                    start=page * items_per_page,
-                ):
-                    queue += '`{0}.` [**{1.source.title}**]({1.source.url})\n'.format(i + 1, song)
-
-                embed = (
-                    discord.Embed(description='**{} track(s):**\n\n{}'.format(len(self.songs), queue))
-                    .set_footer(text='Viewing page {}/{}'.format(page + 1, pages))
-                )
-                embeds.append(embed)
-
-        view = QueuePages(ctx, embeds, current_page=0)
-        channel = self.text_channel or ctx.channel
-
-        try:
-            if self.queue_message:
-                self.queue_message = await self.queue_message.edit(embed=embeds[0], view=view)
-            else:
-                self.queue_message = await channel.send(embed=embeds[0], view=view)
-            view.message = self.queue_message
-        except discord.errors.HTTPException as e:
-            if e.status == 401:
-                logging.error("Invalid Webhook Token. Unable to edit queue message.")
-                self.queue_message = None
-            else:
-                raise
+        await self.show_queue(page=1)
 
     async def ensure_queue_message_valid(self):
         if self.queue_message:
@@ -279,13 +313,10 @@ class VoiceState:
             # If there are no songs in the queue and nothing is currently playing.
             if not self.is_playing and self.songs.qsize() == 0:
                 if self.voice is not None:
-                    channel = self.text_channel or self._ctx.channel
-                    if channel:
-                        try:
-                            await channel.send("Leaving voice channel due to inactivity.")
-                        except Exception:
-                            pass
-                    await self.stop()
+                    await self.stop(
+                        queue_message_text="Bot disconnected from the voice channel due to inactivity.",
+                        channel_notice="Leaving voice channel due to inactivity.",
+                    )
                     logging.info("Inactivity timer ended: Bot stopped due to inactivity.")
                 else:
                     logging.info("Inactivity timer ended: Bot was not connected to a voice channel.")

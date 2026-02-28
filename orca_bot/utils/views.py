@@ -185,22 +185,13 @@ class NowPlayingButtons(discord.ui.View):
             await voice_state.update_now_playing_embed()
 
     async def queue_callback(self, interaction: discord.Interaction):
-        # IMPORTANT: do not reuse the original slash-command Context stored on the View.
-        # Interaction follow-up webhooks expire (~15 min), which causes "Invalid Webhook" errors.
-        # Instead, build a fresh Context from *this* button interaction.
         voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
 
         await self._defer(interaction)
-        if voice_state.is_playing:
-            new_ctx = await commands.Context.from_interaction(interaction)
-            await new_ctx.invoke(new_ctx.bot.get_command('queue'))
-        # Refresh the controls on the now playing message
-        refreshed_view = NowPlayingButtons(self.ctx)
-        refreshed_view.message = interaction.message
-        await interaction.message.edit(view=refreshed_view)
+        await voice_state.show_queue(page=1)
 
     async def skip_callback(self, interaction: discord.Interaction):
         voice_state = self._get_active_voice_state(interaction)

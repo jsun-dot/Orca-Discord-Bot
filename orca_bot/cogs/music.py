@@ -12,7 +12,7 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import logging
 
 from orca_bot.utils.voice_state import VoiceState
-from orca_bot.utils.views import QueuePages, ClearQueueConfirmation
+from orca_bot.utils.views import ClearQueueConfirmation
 from orca_bot.utils.yt_source import YTDLSource, Song, YTDLError
 
 logging.basicConfig(level=logging.INFO)
@@ -228,31 +228,7 @@ class Music(commands.Cog):
         pages = max(1, math.ceil(len(ctx.voice_state.songs) / items_per_page))
 
         requested_page = max(1, min(page, pages))  # clamp
-        embeds = []
-
-        for p in range(pages):
-            queue = ""
-            for i, song in enumerate(
-                ctx.voice_state.songs[p * items_per_page : (p + 1) * items_per_page],
-                start=p * items_per_page,
-            ):
-                queue += "`{0}.` [**{1.source.title}**]({1.source.url})\n".format(i + 1, song)
-            embed = (
-                discord.Embed(description="**{} track(s):**\n\n{}".format(len(ctx.voice_state.songs), queue))
-                .set_footer(text="Viewing page {}/{}".format(p + 1, pages))
-            )
-            embeds.append(embed)
-
-        view = QueuePages(ctx, embeds, current_page=requested_page - 1)
-
-        if ctx.voice_state.queue_message:
-            ctx.voice_state.queue_message = await ctx.voice_state.queue_message.edit(
-                embed=embeds[requested_page - 1],
-                view=view,
-            )
-        else:
-            ctx.voice_state.queue_message = await ctx.send(embed=embeds[requested_page - 1], view=view)
-        view.message = ctx.voice_state.queue_message
+        await ctx.voice_state.show_queue(requested_page)
 
     @commands.hybrid_command(name="clear", description="Clears the queue.")
     async def _clear(self, ctx: commands.Context):
