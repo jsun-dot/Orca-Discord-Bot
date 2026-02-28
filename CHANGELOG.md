@@ -4,7 +4,9 @@ This file tracks published versions of Orca Discord Bot. For the full release hi
 
 ## Unreleased
 
-- No unreleased entries yet.
+- Added governance and project policy docs: `CONTRIBUTING.md`, `SECURITY.md`, `PRIVACY.md`, and `ACCEPTABLE_USE.md`.
+- Fixed the now-playing queue button to render the queue again after the controls persistence changes.
+- Fixed inactivity disconnects so Orca announces why it left before stopping playback.
 
 ## [v0.1.0](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.1.0) - 2026-02-27
 
