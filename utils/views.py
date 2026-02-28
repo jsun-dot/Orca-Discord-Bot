@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from datetime import datetime
+from typing import Optional
 
 
 async def _check_view_access(ctx: commands.Context, interaction: discord.Interaction) -> bool:
@@ -66,7 +67,7 @@ class QueuePages(discord.ui.View):
 
 
 class NowPlayingButtons(discord.ui.View):
-    def __init__(self, ctx: commands.Context):
+    def __init__(self, ctx: Optional[commands.Context] = None):
         super().__init__(timeout=None)
         self.ctx = ctx
         self.message = None  # To store the message object
@@ -92,7 +93,36 @@ class NowPlayingButtons(discord.ui.View):
             button.callback = callback
             self.add_item(button)
 
+    def _get_voice_state(self, interaction: discord.Interaction):
+        if self.ctx is not None:
+            voice_state = getattr(self.ctx, "voice_state", None)
+            if voice_state is not None:
+                return voice_state
+
+        if interaction.guild is None:
+            return None
+
+        music_cog = interaction.client.get_cog("Music")
+        if music_cog is None:
+            return None
+
+        return music_cog.voice_states.get(interaction.guild.id)
+
+    async def _send_inactive_message(self, interaction: discord.Interaction):
+        message = "These controls are no longer active. Start playback again."
+        if interaction.response.is_done():
+            await interaction.followup.send(message, ephemeral=True)
+        else:
+            await interaction.response.send_message(message, ephemeral=True)
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is not None:
+            voice_state.last_activity = datetime.utcnow()
+
+        if self.ctx is None:
+            return True
+
         return await _check_view_access(self.ctx, interaction)
 
     async def _defer(self, interaction: discord.Interaction):
@@ -100,38 +130,55 @@ class NowPlayingButtons(discord.ui.View):
             await interaction.response.defer()
 
     async def pause_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
-        player = ctx.voice_client
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
+        player = interaction.guild.voice_client if interaction.guild else None
         await self._defer(interaction)
         if player and player.is_playing():
             player.pause()
-            ctx.voice_state.action_message = f"**{interaction.user.display_name} paused the player.**"
-            await ctx.voice_state.update_now_playing_embed()
+            voice_state.action_message = f"**{interaction.user.display_name} paused the player.**"
+            await voice_state.update_now_playing_embed()
 
     async def resume_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
-        player = ctx.voice_client
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
+        player = interaction.guild.voice_client if interaction.guild else None
         await self._defer(interaction)
         if player and player.is_paused():
             player.resume()
-            ctx.voice_state.action_message = f"**{interaction.user.display_name} resumed the player.**"
-            await ctx.voice_state.update_now_playing_embed()
+            voice_state.action_message = f"**{interaction.user.display_name} resumed the player.**"
+            await voice_state.update_now_playing_embed()
 
     async def shuffle_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
         await self._defer(interaction)
-        if ctx.voice_state and ctx.voice_state.is_playing:
-            ctx.voice_state.songs.shuffle()
-            await ctx.voice_state.update_queue_message()
-            ctx.voice_state.action_message = f"**{interaction.user.display_name} shuffled the queue.**"
-            await ctx.voice_state.update_now_playing_embed()
+        if voice_state.is_playing:
+            voice_state.songs.shuffle()
+            await voice_state.update_queue_message()
+            voice_state.action_message = f"**{interaction.user.display_name} shuffled the queue.**"
+            await voice_state.update_now_playing_embed()
 
     async def queue_callback(self, interaction: discord.Interaction):
         # IMPORTANT: do not reuse the original slash-command Context stored on the View.
         # Interaction follow-up webhooks expire (~15 min), which causes "Invalid Webhook" errors.
         # Instead, build a fresh Context from *this* button interaction.
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
         await self._defer(interaction)
-        if self.ctx.voice_state and self.ctx.voice_state.is_playing:
+        if voice_state.is_playing:
             new_ctx = await commands.Context.from_interaction(interaction)
             await new_ctx.invoke(new_ctx.bot.get_command('queue'))
         # Refresh the controls on the now playing message
@@ -140,17 +187,26 @@ class NowPlayingButtons(discord.ui.View):
         await interaction.message.edit(view=refreshed_view)
 
     async def skip_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
         await self._defer(interaction)
-        if ctx.voice_state and ctx.voice_state.is_playing:
-            ctx.voice_state.action_message = f"**{interaction.user.display_name} skipped the song.**"
-            await ctx.voice_state.update_now_playing_embed()
-            ctx.voice_state.skip()
+        if voice_state.is_playing:
+            voice_state.action_message = f"**{interaction.user.display_name} skipped the song.**"
+            await voice_state.update_now_playing_embed()
+            voice_state.skip()
 
     async def clear_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
-        if ctx.voice_state and ctx.voice_state.is_playing:
-            view = ClearQueueConfirmation(ctx, ctx.voice_state)
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
+        ctx = self.ctx or await commands.Context.from_interaction(interaction)
+        if voice_state.is_playing:
+            view = ClearQueueConfirmation(ctx, voice_state)
             # Send via the *current* interaction to avoid expired webhook tokens.
             if interaction.response.is_done():
                 view.message = await interaction.followup.send(
@@ -167,16 +223,22 @@ class NowPlayingButtons(discord.ui.View):
             await interaction.response.defer()
 
     async def volume_up_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
         await self._defer(interaction)
-        if ctx.voice_state:
-            await ctx.voice_state.change_volume(10, interaction)  # Increase volume by 10%
+        await voice_state.change_volume(10, interaction)  # Increase volume by 10%
 
     async def volume_down_callback(self, interaction: discord.Interaction):
-        ctx = self.ctx
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return
+
         await self._defer(interaction)
-        if ctx.voice_state:
-            await ctx.voice_state.change_volume(-10, interaction)  # Decrease volume by 10%
+        await voice_state.change_volume(-10, interaction)  # Decrease volume by 10%
 
 
 class ClearQueueConfirmation(discord.ui.View):

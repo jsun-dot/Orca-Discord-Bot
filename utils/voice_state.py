@@ -173,6 +173,13 @@ class VoiceState:
 
         self.exists = False
 
+        if self.now_playing_message:
+            try:
+                await self.now_playing_message.edit(view=None)
+            except Exception:
+                pass
+            self.now_playing_message = None
+
         if self.queue_message:
             try:
                 await self.queue_message.edit(
@@ -182,6 +189,7 @@ class VoiceState:
                 )
             except Exception:
                 pass
+            self.queue_message = None
 
     async def update_queue_message(self):
         if not self.first_song_played:
