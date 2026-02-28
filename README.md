@@ -11,6 +11,14 @@ Orca is a Discord bot centered on music playback, queue management, and a small 
 - Basic moderation commands
 - Simple CI on `main` via GitHub Actions
 
+## Project Docs
+
+- [CHANGELOG.md](CHANGELOG.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
+- [PRIVACY.md](PRIVACY.md)
+- [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)
+
 ## Current Command Style
 
 All bot commands are implemented as hybrid commands, so they can be used either as:
