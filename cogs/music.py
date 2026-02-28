@@ -254,9 +254,13 @@ class Music(commands.Cog):
         view = QueuePages(ctx, embeds, current_page=requested_page - 1)
 
         if ctx.voice_state.queue_message:
-            await ctx.voice_state.queue_message.edit(embed=embeds[requested_page - 1], view=view)
+            ctx.voice_state.queue_message = await ctx.voice_state.queue_message.edit(
+                embed=embeds[requested_page - 1],
+                view=view,
+            )
         else:
             ctx.voice_state.queue_message = await ctx.send(embed=embeds[requested_page - 1], view=view)
+        view.message = ctx.voice_state.queue_message
 
     @commands.hybrid_command(name="clear", description="Clears the queue.")
     async def _clear(self, ctx: commands.Context):
@@ -266,7 +270,8 @@ class Music(commands.Cog):
         if len(ctx.voice_state.songs) == 0:
             return await ctx.send("The queue is already empty.")
 
-        await ctx.send("Are you sure you want to clear the queue?", view=ClearQueueConfirmation(ctx, ctx.voice_state))
+        view = ClearQueueConfirmation(ctx, ctx.voice_state)
+        view.message = await ctx.send("Are you sure you want to clear the queue?", view=view)
 
     @commands.hybrid_command(name="shuffle", description="Shuffles the queue.")
     async def _shuffle(self, ctx: commands.Context):

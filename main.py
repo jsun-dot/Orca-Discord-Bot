@@ -5,6 +5,7 @@ import math
 import os
 import logging
 import datetime
+from utils.views import NowPlayingButtons
 
 # Load environment variables from a local .env file if python-dotenv is installed
 try:
@@ -26,6 +27,7 @@ from discord.utils import get
 intents = discord.Intents.all()
 intents.members = True
 client = commands.Bot(command_prefix="`", intents=intents, help_command=None)
+_persistent_views_registered = False
 
 # create a logger
 logger = logging.getLogger(__name__)
@@ -70,6 +72,12 @@ async def load():
 
 # Run the Client
 async def main():
+    global _persistent_views_registered
+
+    if not _persistent_views_registered:
+        client.add_view(NowPlayingButtons())
+        _persistent_views_registered = True
+
     for attempt in range(2):
         try:
             await load()
