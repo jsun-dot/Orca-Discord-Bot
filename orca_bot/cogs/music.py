@@ -8,20 +8,12 @@ import time
 from collections import defaultdict
 import requests
 import os
-from pathlib import Path
 from spotipy.oauth2 import SpotifyClientCredentials
-import sys
 import logging
 
-# Ensure project root is on sys.path so absolute imports like `utils.*` work reliably.
-# (This helps when running via VS Code debugger/terminal where CWD/PYTHONPATH may differ.)
-_PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from utils.voice_state import VoiceState
-from utils.views import QueuePages, ClearQueueConfirmation
-from utils.yt_source import YTDLSource, Song, YTDLError
+from orca_bot.utils.voice_state import VoiceState
+from orca_bot.utils.views import QueuePages, ClearQueueConfirmation
+from orca_bot.utils.yt_source import YTDLSource, Song, YTDLError
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)

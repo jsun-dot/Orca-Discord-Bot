@@ -8,8 +8,8 @@ from async_timeout import timeout
 from datetime import datetime
 import logging
 
-from utils.views import QueuePages, NowPlayingButtons
-from utils.yt_source import YTDLSource, Song, YTDLError, VoiceError
+from orca_bot.utils.views import QueuePages, NowPlayingButtons
+from orca_bot.utils.yt_source import YTDLSource, Song, YTDLError, VoiceError
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

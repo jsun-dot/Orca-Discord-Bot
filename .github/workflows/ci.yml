@@ -24,4 +24,4 @@ jobs:
           python-version: "3.13"
 
       - name: Compile Python sources
-        run: python -m compileall -q main.py cogs utils
+        run: python -m compileall -q main.py orca_bot
