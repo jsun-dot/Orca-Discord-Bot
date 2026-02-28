@@ -214,9 +214,10 @@ class VoiceState:
 
         try:
             if self.queue_message:
-                await self.queue_message.edit(embed=embeds[0], view=view)
+                self.queue_message = await self.queue_message.edit(embed=embeds[0], view=view)
             else:
                 self.queue_message = await channel.send(embed=embeds[0], view=view)
+            view.message = self.queue_message
         except discord.errors.HTTPException as e:
             if e.status == 401:
                 logging.error("Invalid Webhook Token. Unable to edit queue message.")
@@ -242,16 +243,19 @@ class VoiceState:
             embed.add_field(name="Action:", value=self.action_message, inline=False)
 
         channel = (self.now_playing_message.channel if self.now_playing_message else None) or self.text_channel or ctx.channel
+        view = NowPlayingButtons(ctx)
 
         try:
             if self.now_playing_message:
                 self.now_playing_message = await channel.fetch_message(self.now_playing_message.id)
-                await self.now_playing_message.edit(embed=embed, view=NowPlayingButtons(ctx))
+                self.now_playing_message = await self.now_playing_message.edit(embed=embed, view=view)
             else:
-                self.now_playing_message = await channel.send(embed=embed, view=NowPlayingButtons(ctx))
+                self.now_playing_message = await channel.send(embed=embed, view=view)
         except discord.errors.HTTPException as e:
             logging.error(f"Failed to edit message: {e}")
-            self.now_playing_message = await channel.send(embed=embed, view=NowPlayingButtons(ctx))
+            self.now_playing_message = await channel.send(embed=embed, view=view)
+
+        view.message = self.now_playing_message
 
         self.action_message = ""
 
