@@ -1,0 +1,12 @@
+# Local environment variables (secrets)
+.env
+ffmpeg.exe
+.vscode/
+.venv/
+.cache
+.DS_Store
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/

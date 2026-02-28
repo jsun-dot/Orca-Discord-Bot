@@ -1,6 +1,6 @@
 # Orca Discord Bot
 
-Orca is a Discord bot centered on music playback, queue management, and a small set of utility and moderation commands. The project is written with `discord.py`, uses modular cogs, and supports both slash commands and prefix commands.
+Orca is a Discord bot centered on music playback, queue management, and a small set of utility and moderation commands. The project is written with `discord.py`, uses modular cogs, supports both slash commands and prefix commands, and can be installed as a Python package.
 
 ## Features
 
@@ -66,7 +66,6 @@ Permission-sensitive commands:
 Optional:
 
 - Spotify developer credentials for Spotify playlist support
-- `python-dotenv` if you want the bot to auto-load a local `.env` file
 
 ## Discord Application Setup
 
@@ -103,10 +102,10 @@ py -m venv .venv
 pip install -r requirements.txt
 ```
 
-If you want `.env` files to load automatically, also install:
+For local development, an editable install is the cleanest option:
 
 ```bash
-pip install python-dotenv
+pip install -e .
 ```
 
 ### 4. Install FFmpeg
@@ -139,11 +138,23 @@ SPOTIPY_CLIENT_SECRET=your_spotify_client_secret
 ## Configuration Notes
 
 - `DISCORD_TOKEN` is required. The bot will exit on startup if it is missing.
-- `.env` loading is optional in the current codebase. It only works if `python-dotenv` is installed.
+- `.env` files are auto-loaded through `python-dotenv`.
 - Spotify credentials are only required when using Spotify playlist URLs.
 - The bot writes logs to `log_YYYY-MM-DD.txt` in the project root.
 
 ## Running the Bot
+
+```bash
+orca-bot
+```
+
+You can also run it directly from source:
+
+```bash
+python3 -m orca_bot
+```
+
+The legacy repo-root entry point still works as well:
 
 ```bash
 python3 main.py
@@ -151,7 +162,7 @@ python3 main.py
 
 On startup, the bot:
 
-- loads all cogs from `./cogs`
+- loads all cogs from the installed `orca_bot.cogs` package
 - syncs slash commands
 - writes logs to both the console and a dated log file
 
@@ -167,15 +178,19 @@ On startup, the bot:
 ```text
 .
 |-- main.py
-|-- cogs/
-|   |-- moderation.py
-|   |-- music.py
-|   |-- ping.py
-|   `-- starter.py
-|-- utils/
-|   |-- views.py
-|   |-- voice_state.py
-|   `-- yt_source.py
+|-- pyproject.toml
+|-- orca_bot/
+|   |-- __main__.py
+|   |-- bot.py
+|   |-- cogs/
+|   |   |-- moderation.py
+|   |   |-- music.py
+|   |   |-- ping.py
+|   |   `-- starter.py
+|   `-- utils/
+|       |-- views.py
+|       |-- voice_state.py
+|       `-- yt_source.py
 `-- .github/
     |-- CODEOWNERS
     `-- workflows/
@@ -189,7 +204,7 @@ Main branch protection is now backed by a GitHub Actions workflow and `CODEOWNER
 The current CI check is a syntax compile pass equivalent to:
 
 ```bash
-python3 -m compileall -q main.py cogs utils
+python3 -m compileall -q main.py orca_bot
 ```
 
 If you are opening a PR, run that locally before pushing.
@@ -198,7 +213,7 @@ If you are opening a PR, run that locally before pushing.
 
 ### `Missing DISCORD_TOKEN`
 
-Set `DISCORD_TOKEN` in your shell environment or install `python-dotenv` and place it in a local `.env` file.
+Set `DISCORD_TOKEN` in your shell environment or place it in a local `.env` file.
 
 ### `ffmpeg` not found
 
