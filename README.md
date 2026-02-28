@@ -1,32 +1,33 @@
-# Orca Bot (Rewrite)
+# Orca Discord Bot
 
-This repository contains open-source code for my Discord bot named **Orca**. This is a complete rewrite of the original bot.
+**Orca** is an actively maintained Discord bot focused on **audio streaming**. More commands and features will be added over time with the goal of making Orca easy for anyone to use and run.
 
-## Project goals
-- Support Discord slash commands
-- Add new commands
-- Clean up / fix legacy code
-
-> Note: This bot is a work in progress. Not all parts of the code are guaranteed to work.
+> Note: Orca is under active development. While the bot is stable for day-to-day use, interfaces and behavior may evolve as new features are added.
 
 ---
 
-## Development Branch
+## Features
 
-This repository uses a `development` branch for **testing and validation** before changes are merged into the mainline branch.
+- Audio streaming / music playback
+- Discord **slash command** support
+- Modular command structure (cogs)
 
-### What goes here
-- Experimental changes
-- Integration testing (multiple features together)
-- CI/test verification
-- Pre-release checks
+---
 
-### What should NOT go here
-- Long-term work that isn’t ready for review
-- Secrets / credentials (use `.env` and keep it out of git)
+## Getting Started
 
-### Workflow
-1. Create a feature branch from `testing`
-2. Open a PR into `testing`
-3. Validate tests/behavior
-4. Open a PR from `testing` into `main` when stable
+### Prerequisites
+
+- Python 3.x
+- A Discord bot application + token
+
+### Setup
+
+1. Clone the repository
+2. Install dependencies
+3. Create a `.env` file and set your bot token
+
+Example `.env`:
+
+```env
+DISCORD_TOKEN=your_token_here
