@@ -108,6 +108,20 @@ class NowPlayingButtons(discord.ui.View):
 
         return music_cog.voice_states.get(interaction.guild.id)
 
+    def _get_active_voice_state(self, interaction: discord.Interaction):
+        voice_state = self._get_voice_state(interaction)
+        if voice_state is None:
+            return None
+
+        active_message = getattr(voice_state, "now_playing_message", None)
+        if active_message is None:
+            return None
+
+        if interaction.message is None or active_message.id != interaction.message.id:
+            return None
+
+        return voice_state
+
     async def _send_inactive_message(self, interaction: discord.Interaction):
         message = "These controls are no longer active. Start playback again."
         if interaction.response.is_done():
@@ -116,11 +130,13 @@ class NowPlayingButtons(discord.ui.View):
             await interaction.response.send_message(message, ephemeral=True)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        voice_state = self._get_voice_state(interaction)
-        if voice_state is not None:
-            voice_state.last_activity = datetime.utcnow()
+        voice_state = self._get_active_voice_state(interaction)
+        if voice_state is None:
+            await self._send_inactive_message(interaction)
+            return False
 
         if self.ctx is None:
+            voice_state.last_activity = datetime.utcnow()
             return True
 
         return await _check_view_access(self.ctx, interaction)
@@ -130,7 +146,7 @@ class NowPlayingButtons(discord.ui.View):
             await interaction.response.defer()
 
     async def pause_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -143,7 +159,7 @@ class NowPlayingButtons(discord.ui.View):
             await voice_state.update_now_playing_embed()
 
     async def resume_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -156,7 +172,7 @@ class NowPlayingButtons(discord.ui.View):
             await voice_state.update_now_playing_embed()
 
     async def shuffle_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -172,7 +188,7 @@ class NowPlayingButtons(discord.ui.View):
         # IMPORTANT: do not reuse the original slash-command Context stored on the View.
         # Interaction follow-up webhooks expire (~15 min), which causes "Invalid Webhook" errors.
         # Instead, build a fresh Context from *this* button interaction.
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -187,7 +203,7 @@ class NowPlayingButtons(discord.ui.View):
         await interaction.message.edit(view=refreshed_view)
 
     async def skip_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -199,7 +215,7 @@ class NowPlayingButtons(discord.ui.View):
             voice_state.skip()
 
     async def clear_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -223,7 +239,7 @@ class NowPlayingButtons(discord.ui.View):
             await interaction.response.defer()
 
     async def volume_up_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
@@ -232,7 +248,7 @@ class NowPlayingButtons(discord.ui.View):
         await voice_state.change_volume(10, interaction)  # Increase volume by 10%
 
     async def volume_down_callback(self, interaction: discord.Interaction):
-        voice_state = self._get_voice_state(interaction)
+        voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return
