@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "orca-discord-bot"
-version = "0.1.1"
+version = "0.2.0"
 description = "Discord music bot with hybrid slash and prefix commands, queue controls, Spotify playlist import, and moderation tools."
 readme = "README.md"
 requires-python = ">=3.11"
