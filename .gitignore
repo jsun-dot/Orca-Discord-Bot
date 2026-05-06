@@ -7,6 +7,7 @@ ffmpeg.exe
 .DS_Store
 __pycache__/
 *.pyc
+log_*.txt
 build/
 dist/
 *.egg-info/
