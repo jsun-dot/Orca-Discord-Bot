@@ -1,21 +1,45 @@
-import discord
+"""Ping command cog for checking Orca latency."""
+
+import logging
+
 from discord.ext import commands
-from datetime import datetime
+
+PING_COMMAND_NAME = "ping"
+PING_COMMAND_DESCRIPTION = "Checks your latency to Orca's server."
+MILLISECONDS_PER_SECOND = 1000
+
+log = logging.getLogger(__name__)
+
 
 class Ping(commands.Cog):
-    def __init__(self, bot) -> None:
-        self.bot: commands.Bot = bot
+    """Ping command for reporting the bot latency."""
 
-    @commands.hybrid_command(name = "ping", description = "Checks your latency to Orca's server.")
+    def __init__(self, bot: commands.Bot) -> None:
+        """Store the bot instance for command access."""
+
+        self.bot = bot
+
+    @commands.hybrid_command(
+        name=PING_COMMAND_NAME,
+        description=PING_COMMAND_DESCRIPTION,
+    )
     async def ping(self, ctx: commands.Context) -> None:
-        ping = (f'{round(self.bot.latency * 1000)}ms')
-        timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
-        server_name = ctx.guild.name
-        server_id = ctx.guild.id
-        user_hash = ctx.author.discriminator
-        print(f'{timestamp} - {ctx.author.display_name}#{user_hash} used the ping command in server "{server_name}" ({server_id})')
-        await ctx.send(ping)
+        """Send the current bot latency to the invoking context."""
 
-async def setup(bot):
+        assert ctx.guild is not None
+
+        latency_ms = round(self.bot.latency * MILLISECONDS_PER_SECOND)
+
+        log.info(
+            '%s used the ping command in server "%s" (%s)',
+            ctx.author,
+            ctx.guild.name,
+            ctx.guild.id,
+        )
+        await ctx.send(f"{latency_ms}ms")
+
+
+async def setup(bot: commands.Bot) -> None:
+    """Register the ping cog with the bot."""
+
     await bot.add_cog(Ping(bot))
-
