@@ -142,6 +142,7 @@ def _configure_logger(debug: bool = False) -> logging.Logger:
 
     current_date = datetime.date.today().strftime(LOG_DATE_FORMAT)
     log_file = LOG_FILE_TEMPLATE.format(date=current_date)
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
     file_handler = logging.FileHandler(filename=log_file, mode="a")
     file_handler.setLevel(level)
 
