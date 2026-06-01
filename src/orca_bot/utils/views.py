@@ -12,12 +12,8 @@ if TYPE_CHECKING:
     from orca_bot.utils.voice_state import VoiceState
 
 VIEW_TIMEOUT_SEC = 1800
-AUTHOR_ONLY_CONTROLS_MESSAGE = (
-    "Only the command author can use these controls."
-)
-INACTIVE_CONTROLS_MESSAGE = (
-    "These controls are no longer active. Start playback again."
-)
+AUTHOR_ONLY_CONTROLS_MESSAGE = "Only the command author can use these controls."
+INACTIVE_CONTROLS_MESSAGE = "These controls are no longer active. Start playback again."
 CLEAR_QUEUE_PROMPT = "Are you sure you want to clear the queue?"
 QUEUE_CLEARED_MESSAGE = "The queue has been cleared."
 QUEUE_CLEAR_CANCELLED_MESSAGE = "Cancelled clearing the queue."
@@ -210,14 +206,7 @@ class NowPlayingButtons(discord.ui.View):
         if voice_state is None:
             return None
 
-        active_message = getattr(voice_state, "now_playing_message", None)
-        if active_message is None:
-            return None
-
-        if (
-            interaction.message is None
-            or active_message.id != interaction.message.id
-        ):
+        if not voice_state.exists or voice_state.current is None:
             return None
 
         return voice_state
@@ -254,18 +243,15 @@ class NowPlayingButtons(discord.ui.View):
         self,
         interaction: discord.Interaction,
     ) -> bool:
-        """Reject interactions that target stale controls or the wrong user."""
+        """Reject interactions that target stale controls."""
 
         voice_state = self._get_active_voice_state(interaction)
         if voice_state is None:
             await self._send_inactive_message(interaction)
             return False
 
-        if self.ctx is None:
-            voice_state.last_activity = datetime.now(timezone.utc)
-            return True
-
-        return await _check_view_access(self.ctx, interaction)
+        voice_state.last_activity = datetime.now(timezone.utc)
+        return True
 
     async def _defer(self, interaction: discord.Interaction) -> None:
         """Defer an interaction response when no immediate message is sent."""
@@ -291,7 +277,7 @@ class NowPlayingButtons(discord.ui.View):
                 interaction.user.display_name,
                 "paused the player",
             )
-            await voice_state.update_now_playing_embed()
+            await voice_state.update_now_playing_embed(interaction)
 
     async def resume_callback(
         self,
@@ -311,7 +297,7 @@ class NowPlayingButtons(discord.ui.View):
                 interaction.user.display_name,
                 "resumed the player",
             )
-            await voice_state.update_now_playing_embed()
+            await voice_state.update_now_playing_embed(interaction)
 
     async def shuffle_callback(
         self,
@@ -331,7 +317,7 @@ class NowPlayingButtons(discord.ui.View):
                 interaction.user.display_name,
                 "shuffled the queue",
             )
-            await voice_state.update_now_playing_embed()
+            await voice_state.update_now_playing_embed(interaction)
 
     async def queue_callback(
         self,
@@ -362,7 +348,7 @@ class NowPlayingButtons(discord.ui.View):
                 interaction.user.display_name,
                 "skipped the song",
             )
-            await voice_state.update_now_playing_embed()
+            await voice_state.update_now_playing_embed(interaction)
             voice_state.skip()
 
     async def clear_callback(

@@ -1,5 +1,6 @@
 """Startup and presence management cog for Orca."""
 
+import unicodedata
 from datetime import datetime, timezone
 
 import discord
@@ -33,16 +34,27 @@ def _build_banner_border(left: str, fill: str, right: str, width: int) -> str:
     return f"{left}{fill * width}{right}"
 
 
+def _visual_len(text: str) -> int:
+    """Return the visual display width, counting wide characters (e.g. emoji) as 2."""
+
+    width = 0
+    for char in text:
+        eaw = unicodedata.east_asian_width(char)
+        width += 2 if eaw in ("W", "F") else 1
+    return width
+
+
 def _build_centered_banner_line(content: str = "") -> str:
     """Return a centered line inside the outer banner frame."""
 
-    return f"║{content.center(OUTER_BANNER_WIDTH)}║"
+    extra = _visual_len(content) - len(content)
+    return f"║{content.center(OUTER_BANNER_WIDTH - extra)}║"
 
 
 def _build_inner_banner_line(left: str, content: str, right: str) -> str:
     """Return a formatted inner box line for the startup banner."""
 
-    padded_content = f"  {content}".ljust(INNER_BANNER_WIDTH)
+    padded_content = content.ljust(INNER_BANNER_WIDTH)
     return (
         f"║{' ' * INNER_BANNER_LEFT_PADDING}"
         f"{left}{padded_content}{right}"
@@ -89,9 +101,8 @@ class Starter(commands.Cog):
                 ),
                 _build_inner_banner_line(
                     "│",
-                    ONLINE_BANNER_TIME_LABEL.format(
-                        time=_get_eastern_time_string()
-                    ),
+                    "  "
+                    + ONLINE_BANNER_TIME_LABEL.format(time=_get_eastern_time_string()),
                     "│",
                 ),
                 _build_inner_banner_line(
@@ -121,8 +132,9 @@ class Starter(commands.Cog):
         await self.client.tree.sync()
 
         if self.client.user is not None:
-            print(self._build_online_banner())
+            print(f"\n{self._build_online_banner()}")
             print(self._build_login_summary())
+            print(getattr(self.client, "console_help_text", ""))
 
         await self.client.change_presence(
             activity=discord.Activity(

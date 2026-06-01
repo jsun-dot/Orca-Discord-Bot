@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import datetime
+import importlib.metadata
 import logging
 import os
 from pathlib import Path
@@ -27,7 +28,7 @@ COG_INIT_FILE = "__init__.py"
 LOG_LEVEL = logging.INFO
 LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d"
-LOG_FILE_TEMPLATE = "log_{date}.txt"
+LOG_FILE_TEMPLATE = "logs/log_{date}.txt"
 STARTUP_RETRY_ATTEMPTS = 2
 CONSOLE_PROMPT = "orca> "
 CONSOLE_HELP_TEXT = (
@@ -106,6 +107,7 @@ client = commands.Bot(
     intents=intents,
     help_command=None,
 )
+client.console_help_text = CONSOLE_HELP_TEXT
 _persistent_views_registered = False
 
 
@@ -118,26 +120,30 @@ class RuntimeCommandState:
     restart_requested: bool = False
 
 
-def _configure_logger() -> logging.Logger:
+def _configure_logger(debug: bool = False) -> logging.Logger:
     """Configure and return the package-level logger."""
 
     logging.getLogger("discord.voice_state").setLevel(logging.WARNING)
     logging.getLogger("discord.player").setLevel(logging.WARNING)
 
+    level = logging.DEBUG if debug else LOG_LEVEL
+
     logger = logging.getLogger("orca_bot")
-    logger.setLevel(LOG_LEVEL)
+    logger.setLevel(level)
     logger.propagate = False
 
     if logger.handlers:
+        for handler in logger.handlers:
+            handler.setLevel(level)
         return logger
 
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(LOG_LEVEL)
+    console_handler.setLevel(level)
 
     current_date = datetime.date.today().strftime(LOG_DATE_FORMAT)
     log_file = LOG_FILE_TEMPLATE.format(date=current_date)
     file_handler = logging.FileHandler(filename=log_file, mode="a")
-    file_handler.setLevel(LOG_LEVEL)
+    file_handler.setLevel(level)
 
     formatter = logging.Formatter(LOG_FORMAT)
     console_handler.setFormatter(formatter)
@@ -148,7 +154,7 @@ def _configure_logger() -> logging.Logger:
     return logger
 
 
-logger = _configure_logger()
+logger = logging.getLogger("orca_bot")
 
 
 def _is_interactive_console() -> bool:
@@ -230,8 +236,6 @@ async def _handle_console_commands(state: RuntimeCommandState) -> None:
     )
     reader_thread.start()
 
-    print(CONSOLE_HELP_TEXT)
-
     while not state.stop_requested and not state.restart_requested:
         raw_command = await command_queue.get()
         command = raw_command.strip().lower()
@@ -250,6 +254,11 @@ async def _handle_console_commands(state: RuntimeCommandState) -> None:
         if command in EXIT_COMMANDS:
             state.stop_requested = True
             logger.info("Shutdown requested from console.")
+            for vc in list(client.voice_clients):
+                try:
+                    await vc.disconnect(force=True)
+                except Exception:
+                    pass
             if not client.is_closed():
                 await client.close()
             return
@@ -323,9 +332,7 @@ async def main() -> bool:
                 if attempt == 0:
                     logger.info("Retrying...")
                 else:
-                    logger.error(
-                        "Failed to load again. Check the server and restart."
-                    )
+                    logger.error("Failed to load again. Check the server and restart.")
                     break
     finally:
         if console_task is not None:
@@ -338,6 +345,44 @@ async def main() -> bool:
 
 def run() -> None:
     """Run the bot inside a managed asyncio event loop."""
+
+    if "--version" in sys.argv or "-v" in sys.argv or "-V" in sys.argv:
+        version = importlib.metadata.version("orca-discord-bot")
+        print(f"Orca Discord Bot v{version}")
+        return
+
+    if "--help" in sys.argv or "-h" in sys.argv:
+        version = importlib.metadata.version("orca-discord-bot")
+        print(f"Orca Discord Bot v{version}")
+        print(
+            "A Discord bot with music playback, queue controls, and moderation utilities."
+        )
+        print()
+        print("Usage: orca-bot [options]")
+        print()
+        print("Options:")
+        print("  -h, --help             Show this message and exit.")
+        print("  -v, -V, --version      Show the version and exit.")
+        print(
+            "  --debug                Enable debug logging (includes audio stream info)."
+        )
+        print()
+        print("Environment Variables:")
+        print("  DISCORD_TOKEN          Required. Production bot token.")
+        print(
+            "  ORCA_PROFILE           Runtime profile: 'dev' or 'default' (default: auto)."
+        )
+        print("  BOT_TOKEN_DEV          Dev token, used when ORCA_PROFILE=dev.")
+        print("  SPOTIPY_CLIENT_ID      Spotify client ID for playlist support.")
+        print("  SPOTIPY_CLIENT_SECRET  Spotify client secret for playlist support.")
+        print()
+        print(CONSOLE_HELP_TEXT)
+        print()
+        print("Docs: https://github.com/jsun-dot/Orca-Discord-Bot")
+        return
+
+    debug = "--debug" in sys.argv
+    _configure_logger(debug=debug)
 
     should_restart = asyncio.run(main())
     if should_restart:

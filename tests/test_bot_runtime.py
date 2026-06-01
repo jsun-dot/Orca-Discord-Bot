@@ -60,7 +60,9 @@ class RuntimeCredentialTests(unittest.TestCase):
         ):
             self.assertEqual(_resolve_runtime_credentials(), ("default", "prod-token"))
 
-    def test_errors_when_default_profile_is_requested_without_discord_token(self) -> None:
+    def test_errors_when_default_profile_is_requested_without_discord_token(
+        self,
+    ) -> None:
         with patch.dict(
             os.environ,
             {"BOT_TOKEN_DEV": "dev-token", "ORCA_PROFILE": "default"},
@@ -98,10 +100,32 @@ class LoggerConfigTests(unittest.TestCase):
         self.assertGreater(len(logger.handlers), 0)
 
     def test_cog_loggers_reach_orca_bot_handlers(self) -> None:
+        _configure_logger()
         cog_logger = logging.getLogger("orca_bot.cogs.music")
         package_logger = logging.getLogger("orca_bot")
         self.assertTrue(cog_logger.propagate)
         self.assertGreater(len(package_logger.handlers), 0)
+
+    def test_debug_mode_sets_log_level_to_debug(self) -> None:
+        package_logger = logging.getLogger("orca_bot")
+        package_logger.handlers.clear()
+        logger = _configure_logger(debug=True)
+        self.assertEqual(logger.level, logging.DEBUG)
+        package_logger.handlers.clear()
+
+    def test_default_mode_sets_log_level_to_info(self) -> None:
+        package_logger = logging.getLogger("orca_bot")
+        package_logger.handlers.clear()
+        logger = _configure_logger(debug=False)
+        self.assertEqual(logger.level, logging.INFO)
+        package_logger.handlers.clear()
+
+    def test_debug_handler_level_is_debug(self) -> None:
+        package_logger = logging.getLogger("orca_bot")
+        package_logger.handlers.clear()
+        logger = _configure_logger(debug=True)
+        self.assertTrue(all(h.level == logging.DEBUG for h in logger.handlers))
+        package_logger.handlers.clear()
 
 
 class RestartArgsTests(unittest.TestCase):

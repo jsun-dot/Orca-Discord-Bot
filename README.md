@@ -13,11 +13,11 @@ Orca is a Discord bot centered on music playback, queue management, and a small 
 
 ## Project Docs
 
-- [CHANGELOG.md](CHANGELOG.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [SECURITY.md](SECURITY.md)
-- [PRIVACY.md](PRIVACY.md)
-- [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)
+- [CHANGELOG.md](docs/CHANGELOG.md)
+- [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- [SECURITY.md](docs/SECURITY.md)
+- [PRIVACY.md](docs/PRIVACY.md)
+- [ACCEPTABLE_USE.md](docs/ACCEPTABLE_USE.md)
 
 ## Current Command Style
 
@@ -107,13 +107,13 @@ py -m venv .venv
 ### 3. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install .
 ```
 
-For local development, an editable install is the cleanest option:
+For development (includes pytest, ruff, and mypy):
 
 ```bash
-pip install -e .
+pip install ".[dev]"
 ```
 
 ### 4. Install FFmpeg
@@ -148,12 +148,32 @@ SPOTIPY_CLIENT_SECRET=your_spotify_client_secret
 - `DISCORD_TOKEN` is required. The bot will exit on startup if it is missing.
 - `.env` files are auto-loaded through `python-dotenv`.
 - Spotify credentials are only required when using Spotify playlist URLs.
-- The bot writes logs to `log_YYYY-MM-DD.txt` in the project root.
+- The bot writes logs to `logs/log_YYYY-MM-DD.txt`.
 
 ## Running the Bot
 
 ```bash
 orca-bot
+```
+
+Or with the Makefile:
+
+```bash
+make run
+```
+
+Available flags:
+
+```
+orca-bot --help       Show usage, options, env vars, and console commands
+orca-bot --version    Show the installed version
+orca-bot --debug      Enable debug logging (includes audio stream info)
+```
+
+For debug startup via Make:
+
+```bash
+make run-debug
 ```
 
 You can also run it directly from source:
@@ -177,8 +197,9 @@ On startup, the bot:
 ## Playback Notes
 
 - `play` accepts plain search text and direct URLs supported by `yt-dlp`
-- Spotify support is currently focused on playlist URLs
-- Queue and now-playing messages are interactive and include playback controls
+- Spotify playlist support requires the app owner's Spotify account to have an active Premium subscription
+- Queue and now-playing messages are interactive and include playback controls usable by any server member
+- The Now Playing embed always appears at the bottom of the channel when a new song starts
 - The bot must be in the same voice channel as the requesting user for music commands
 
 ## Project Structure
@@ -187,18 +208,32 @@ On startup, the bot:
 .
 |-- main.py
 |-- pyproject.toml
-|-- orca_bot/
-|   |-- __main__.py
-|   |-- bot.py
-|   |-- cogs/
-|   |   |-- moderation.py
-|   |   |-- music.py
-|   |   |-- ping.py
-|   |   `-- starter.py
-|   `-- utils/
-|       |-- views.py
-|       |-- voice_state.py
-|       `-- yt_source.py
+|-- Makefile
+|-- src/
+|   `-- orca_bot/
+|       |-- __main__.py
+|       |-- bot.py
+|       |-- cogs/
+|       |   |-- moderation.py
+|       |   |-- music.py
+|       |   |-- ping.py
+|       |   `-- starter.py
+|       `-- utils/
+|           |-- views.py
+|           |-- voice_state.py
+|           `-- yt_source.py
+|-- tests/
+|   |-- test_bot_runtime.py
+|   |-- test_music_utils.py
+|   |-- test_spotify_playlist.py
+|   `-- test_starter.py
+|-- logs/
+|-- docs/
+|   |-- CHANGELOG.md
+|   |-- CONTRIBUTING.md
+|   |-- SECURITY.md
+|   |-- PRIVACY.md
+|   `-- ACCEPTABLE_USE.md
 `-- .github/
     |-- CODEOWNERS
     `-- workflows/
@@ -207,15 +242,47 @@ On startup, the bot:
 
 ## Development
 
-Main branch protection is now backed by a GitHub Actions workflow and `CODEOWNERS`.
+### Makefile
 
-The current CI check is a syntax compile pass equivalent to:
+A `Makefile` is included for common development tasks. Run `make help` to list all available targets:
 
-```bash
-python3 -m compileall -q main.py orca_bot
+```
+Usage: make <target>
+
+Targets:
+  install    Install the package into the venv
+  dev        Install the package with dev dependencies (pytest, ruff, mypy)
+  test       Run the full test suite
+  lint       Run ruff linter
+  format     Apply ruff formatter
+  typecheck  Run mypy static type checker
+  run        Start the bot
+  run-debug  Start the bot with debug logging enabled
+  clean      Remove __pycache__, egg-info, and dist directories
 ```
 
-If you are opening a PR, run that locally before pushing.
+For a first-time dev setup:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+make dev
+```
+
+### CI
+
+Main branch protection is now backed by a GitHub Actions workflow and `CODEOWNERS`.
+
+The CI runs on every PR and push to `main`:
+
+1. Compiles all Python sources (`main.py` and `src/orca_bot`)
+2. Runs the full test suite (`pytest`)
+
+Before opening a PR, verify locally with:
+
+```bash
+make test
+```
 
 ## Troubleshooting
 

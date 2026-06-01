@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  syntax:
+  ci:
     name: Syntax Check
     runs-on: ubuntu-latest
 
@@ -23,5 +23,11 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Install dependencies
+        run: pip install ".[dev]"
+
       - name: Compile Python sources
-        run: python -m compileall -q main.py orca_bot
+        run: python -m compileall -q main.py src/orca_bot
+
+      - name: Run tests
+        run: python -m pytest

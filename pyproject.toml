@@ -43,8 +43,26 @@ Issues = "https://github.com/jsun-dot/Orca-Discord-Bot/issues"
 [project.scripts]
 orca-bot = "orca_bot.bot:run"
 
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.4", "mypy>=1.10"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["E402"]
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["orca_bot.cogs.*", "orca_bot.utils.*"]
+ignore_errors = true
+
 [tool.setuptools]
 include-package-data = false
 
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["orca_bot*"]
