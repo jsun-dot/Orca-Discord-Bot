@@ -6,6 +6,11 @@ This file tracks published versions of Orca Discord Bot. For the full release hi
 
 - No unreleased entries yet.
 
+## [v0.3.1](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.3.1) - 2026-05-31
+
+### Fixed
+- `logs/` directory is now created automatically on startup if it does not exist, fixing a `FileNotFoundError` when running the bot after a fresh `pip install`.
+
 ## [v0.3.0](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.3.0) - 2026-05-31
 
 ### Fixed
