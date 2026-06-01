@@ -31,7 +31,7 @@ class VisualLenTests(unittest.TestCase):
         self.assertEqual(_visual_len("🤖"), 2)
 
     def test_mixed_emoji_and_ascii(self) -> None:
-        self.assertEqual(_visual_len("🤖 hi"), 5)  # 2 + 1 + 2
+        self.assertEqual(_visual_len("🤖 hi"), 5)  # 2 + 1 + 1 + 1
 
     def test_two_emoji_adds_two_extra(self) -> None:
         self.assertEqual(_visual_len("🤖🤖"), 4)

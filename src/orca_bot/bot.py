@@ -133,6 +133,8 @@ def _configure_logger(debug: bool = False) -> logging.Logger:
     logger.propagate = False
 
     if logger.handlers:
+        for handler in logger.handlers:
+            handler.setLevel(level)
         return logger
 
     console_handler = logging.StreamHandler()

@@ -46,9 +46,8 @@ FFMPEG_BEFORE_OPTIONS = (
     "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
     "-rw_timeout 15000000"
 )
-# 10-band graphic EQ matching the user's Apple Music equalizer curve.
+# 10-band graphic EQ tuned for compressed streams.
 # Each band uses 1-octave width to match standard graphic EQ spacing.
-# 64Hz is aggressive (+10dB) — reduce if distortion is heard on loud tracks.
 EQ_BANDS: list[tuple[int, int]] = [
     (32, 1),
     (64, 3),
