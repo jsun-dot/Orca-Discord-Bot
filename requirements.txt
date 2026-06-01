@@ -1,7 +1,0 @@
-async-timeout>=4.0.3
-discord.py[voice]>=2.4.0,<3
-python-dotenv>=1.0.1
-pytz>=2024.1
-requests>=2.32.3
-spotipy>=2.24.0
-yt-dlp>=2026.1.31

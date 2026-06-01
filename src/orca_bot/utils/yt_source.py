@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import logging
+import subprocess
 from typing import Any
 
 import discord
 import yt_dlp as youtube_dl
 from discord.ext import commands
+
+log = logging.getLogger(__name__)
 
 HEADER_LINE_SEPARATOR = "\\r\\n"
 YOUTUBE_ORIGIN = "https://www.youtube.com"
@@ -24,9 +28,7 @@ NOW_PLAYING_REQUESTER_LABEL = "Played by"
 SEARCH_CACHE_MAX_SIZE = 256
 
 YTDL_OPTIONS: dict[str, Any] = {
-    "format": "bestaudio/best",
-    "extractaudio": True,
-    "audioformat": "mp3",
+    "format": "bestaudio[acodec=opus]/bestaudio[acodec=vorbis]/bestaudio/best",
     "outtmpl": "%(extractor)s-%(id)s-%(title)s.%(ext)s",
     "restrictfilenames": True,
     "noplaylist": False,
@@ -40,13 +42,32 @@ YTDL_OPTIONS: dict[str, Any] = {
     "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
 }
 FFMPEG_BEFORE_OPTIONS = (
-    "-loglevel error "
+    "-loglevel quiet "
     "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 "
     "-rw_timeout 15000000"
 )
-FFMPEG_OPTIONS: dict[str, str] = {
+# 10-band graphic EQ matching the user's Apple Music equalizer curve.
+# Each band uses 1-octave width to match standard graphic EQ spacing.
+# 64Hz is aggressive (+10dB) — reduce if distortion is heard on loud tracks.
+EQ_BANDS: list[tuple[int, int]] = [
+    (32, 1),
+    (64, 3),
+    (125, 0),
+    (250, 0),
+    (500, -1),
+    (1000, -1),
+    (2000, 1),
+    (4000, -1),
+    (8000, 1),
+    (16000, 2),
+]
+_EQ_FILTER = ",".join(
+    f"equalizer=f={freq}:width_type=o:width=1:g={gain}" for freq, gain in EQ_BANDS
+)
+FFMPEG_OPTIONS: dict[str, Any] = {
     "before_options": FFMPEG_BEFORE_OPTIONS,
-    "options": "-vn",
+    "options": f'-vn -af "{_EQ_FILTER}"',
+    "stderr": subprocess.DEVNULL,
 }
 
 
@@ -185,6 +206,15 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.stream_url = data.get("url")
         self.http_headers = dict(data.get("http_headers") or {})
 
+        abr = data.get("abr") or data.get("tbr")
+        log.debug(
+            "Stream resolved: %s | format: %s | audio bitrate: %s | sample rate: %sHz",
+            self.title,
+            data.get("ext") or "unknown",
+            f"{abr}kbps" if abr else "unknown",
+            data.get("asr") or "unknown",
+        )
+
     def __str__(self) -> str:
         """Return a readable title and uploader string for the source."""
 
@@ -274,9 +304,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
         )
         info = await loop.run_in_executor(None, partial)
         if info is None:
-            raise YTDLError(
-                YTDL_REGATHER_FAILED_MESSAGE.format(url=source.url)
-            )
+            raise YTDLError(YTDL_REGATHER_FAILED_MESSAGE.format(url=source.url))
 
         entries = _iter_playable_entries(info)
         refreshed_info = entries[0]

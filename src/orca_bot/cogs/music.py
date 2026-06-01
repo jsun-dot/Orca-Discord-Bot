@@ -27,10 +27,8 @@ SPOTIFY_PLAYLIST_NAME_FALLBACK = "Spotify playlist"
 YOUTUBE_QUERY_SUFFIX = " Audio"
 QUEUE_ITEMS_PER_PAGE = 10
 SPOTIFY_PLAYLIST_RESOLVE_DELAY_SEC = 20
-SPOTIFY_RESOLVE_CONCURRENCY = 2
-SPOTIFY_RESOLVE_BATCH_SIZE = 10
 PLAYLIST_PROGRESS_EDIT_INTERVAL_SEC = 2.5
-QUEUE_UPDATE_BATCH_MULTIPLIER = 3
+SPOTIFY_TRACK_LIST_MAX_VISIBLE = 20
 
 SpotifyTrack = tuple[str, str]
 
@@ -142,14 +140,9 @@ class Music(commands.Cog):
 
         ctx.voice_state = self.get_voice_state(ctx)
         if not ctx.author.voice or not ctx.author.voice.channel:
-            raise commands.CommandError(
-                "You are not connected to any voice channel."
-            )
+            raise commands.CommandError("You are not connected to any voice channel.")
 
-        if (
-            ctx.voice_client
-            and ctx.voice_client.channel != ctx.author.voice.channel
-        ):
+        if ctx.voice_client and ctx.voice_client.channel != ctx.author.voice.channel:
             raise commands.CommandError("Orca is already in a voice channel.")
 
     async def _maybe_defer(self, ctx: commands.Context) -> None:
@@ -175,9 +168,7 @@ class Music(commands.Cog):
                     await ctx.voice_client.disconnect(force=True)
                 except Exception:
                     pass
-                ctx.voice_state.voice = await destination.connect(
-                    reconnect=True
-                )
+                ctx.voice_state.voice = await destination.connect(reconnect=True)
             else:
                 ctx.voice_state.voice = ctx.voice_client
             return ctx.voice_state.voice
@@ -392,9 +383,7 @@ class Music(commands.Cog):
             return
 
         if index < 1 or index > queue_length:
-            await ctx.send(
-                f"Invalid index. Choose a number from 1 to {queue_length}."
-            )
+            await ctx.send(f"Invalid index. Choose a number from 1 to {queue_length}.")
             return
 
         ctx.voice_state.songs.remove(index - 1)
@@ -419,7 +408,12 @@ class Music(commands.Cog):
                     try:
                         await self.play_spotify_playlist(ctx, search)
                     except commands.CommandError as error:
-                        await ctx.send(str(error))
+                        await ctx.send(
+                            embed=discord.Embed(
+                                description=str(error),
+                                color=discord.Color.red(),
+                            )
+                        )
                     return
 
                 search = _sanitize_search_query(search)
@@ -436,8 +430,7 @@ class Music(commands.Cog):
                         for source in sources:
                             await ctx.voice_state.songs.put(Song(source))
                         ctx.voice_state.action_message = (
-                            f"{ctx.author.display_name} added a playlist to "
-                            "the queue."
+                            f"{ctx.author.display_name} added a playlist to the queue."
                         )
                     else:
                         song = Song(sources[0])
@@ -453,9 +446,7 @@ class Music(commands.Cog):
 
         except YTDLError as error:
             log.error("YTDLError: %s", error)
-            await ctx.send(
-                f"An error occurred while processing this request: {error}"
-            )
+            await ctx.send(f"An error occurred while processing this request: {error}")
         except Exception as error:
             log.exception("Unexpected error in play: %s", error)
             await ctx.send(f"An unexpected error occurred: {error}")
@@ -468,7 +459,15 @@ class Music(commands.Cog):
 
         def _run() -> tuple[str, list[SpotifyTrack]]:
             spotify_client = self._get_spotify()
-            playlist = spotify_client.playlist(playlist_id)
+            try:
+                playlist = spotify_client.playlist(playlist_id)
+            except spotipy.SpotifyException as error:
+                if error.http_status == 403:
+                    raise commands.CommandError(
+                        "Spotify credentials are invalid or the app owner "
+                        "does not have an active Spotify Premium subscription."
+                    )
+                raise
             name = playlist.get("name", SPOTIFY_PLAYLIST_NAME_FALLBACK)
 
             tracks: list[SpotifyTrack] = []
@@ -504,9 +503,6 @@ class Music(commands.Cog):
 
         guild_id = ctx.guild.id
         playlist_id = url.split("/")[-1].split("?")[0]
-        queue_update_interval = (
-            SPOTIFY_RESOLVE_BATCH_SIZE * QUEUE_UPDATE_BATCH_MULTIPLIER
-        )
 
         async with self._playlist_locks[guild_id]:
             self.processing_playlists.add(guild_id)
@@ -516,59 +512,31 @@ class Music(commands.Cog):
                     await ctx.send("I'm not connected to a voice channel.")
                     return
 
-                playlist_name, tracks = await self._fetch_spotify_playlist(
-                    playlist_id
-                )
+                playlist_name, tracks = await self._fetch_spotify_playlist(playlist_id)
 
                 loading_message = await ctx.send(
                     embed=discord.Embed(
-                        description=(
-                            "Adding songs from the Spotify playlist "
-                            f"**{playlist_name}**... "
-                            ":arrows_counterclockwise:"
-                        ),
+                        title=f"Adding from {playlist_name}... (0/{len(tracks)})",
+                        description=":arrows_counterclockwise:",
                         color=discord.Color.orange(),
                     )
                 )
 
-                semaphore = asyncio.Semaphore(SPOTIFY_RESOLVE_CONCURRENCY)
-                rate_limit_lock = asyncio.Lock()
-                last_request = 0.0
-                last_edit = 0.0
-
-                async def resolve_one(
-                    track_index: int,
-                    name: str,
-                    artist: str,
-                ):
-                    query = _sanitize_search_query(
-                        f"{name} {artist}{YOUTUBE_QUERY_SUFFIX}"
-                    )
-                    async with semaphore:
-                        nonlocal last_request
-                        async with rate_limit_lock:
-                            now = time.monotonic()
-                            wait_time = max(
-                                0.0,
-                                SPOTIFY_PLAYLIST_RESOLVE_DELAY_SEC
-                                - (now - last_request),
-                            )
-                            if wait_time:
-                                await asyncio.sleep(wait_time)
-                            last_request = time.monotonic()
-                        try:
-                            sources = await YTDLSource.create_source(
-                                ctx,
-                                query,
-                            )
-                            return track_index, sources, None
-                        except Exception as error:
-                            return track_index, None, error
-
                 total = len(tracks)
                 added = 0
+                last_request = 0.0
+                last_edit = 0.0
+                added_track_lines: list[str] = []
 
-                for start in range(0, total, SPOTIFY_RESOLVE_BATCH_SIZE):
+                def _build_track_list_description() -> str:
+                    visible = added_track_lines[-SPOTIFY_TRACK_LIST_MAX_VISIBLE:]
+                    hidden = len(added_track_lines) - len(visible)
+                    lines = "\n".join(visible)
+                    if hidden > 0:
+                        lines = f"... and {hidden} more\n" + lines
+                    return lines
+
+                for index, (name, artist) in enumerate(tracks):
                     voice_client = ctx.voice_client or ctx.voice_state.voice
                     if not voice_client or not voice_client.is_connected():
                         try:
@@ -586,68 +554,57 @@ class Music(commands.Cog):
                             pass
                         return
 
-                    batch = tracks[start : start + SPOTIFY_RESOLVE_BATCH_SIZE]
-                    tasks = [
-                        resolve_one(start + index, name, artist)
-                        for index, (name, artist) in enumerate(batch)
-                    ]
-                    results = await asyncio.gather(*tasks)
-                    results.sort(key=lambda item: item[0])
+                    now = time.monotonic()
+                    wait_time = max(
+                        0.0,
+                        SPOTIFY_PLAYLIST_RESOLVE_DELAY_SEC - (now - last_request),
+                    )
+                    if wait_time:
+                        await asyncio.sleep(wait_time)
+                    last_request = time.monotonic()
+
+                    query = _sanitize_search_query(
+                        f"{name} {artist}{YOUTUBE_QUERY_SUFFIX}"
+                    )
+                    try:
+                        sources = await YTDLSource.create_source(ctx, query)
+                    except Exception as error:
+                        log.warning(
+                            "Failed to resolve Spotify track %s/%s: %s",
+                            index + 1,
+                            total,
+                            error,
+                        )
+                        continue
+
+                    if not sources:
+                        continue
 
                     async with ctx.voice_state.lock:
-                        for track_index, sources, error in results:
-                            if error or not sources:
-                                log.warning(
-                                    "Failed to resolve Spotify track %s/%s: "
-                                    "%s",
-                                    track_index + 1,
-                                    total,
-                                    error,
-                                )
-                                continue
-
-                            if len(sources) > 1:
-                                for source in sources:
-                                    await ctx.voice_state.songs.put(
-                                        Song(source)
-                                    )
-                                    added += 1
-                            else:
-                                await ctx.voice_state.songs.put(
-                                    Song(sources[0])
-                                )
+                        if len(sources) > 1:
+                            for source in sources:
+                                await ctx.voice_state.songs.put(Song(source))
                                 added += 1
+                        else:
+                            await ctx.voice_state.songs.put(Song(sources[0]))
+                            added += 1
+
+                    added_track_lines.append(f"• {name} — {artist}")
 
                     now = time.monotonic()
                     if now - last_edit > PLAYLIST_PROGRESS_EDIT_INTERVAL_SEC:
                         last_edit = now
-                        processed = min(
-                            start + SPOTIFY_RESOLVE_BATCH_SIZE,
-                            total,
-                        )
                         try:
                             await loading_message.edit(
                                 embed=discord.Embed(
-                                    description=(
-                                        "Adding songs from the Spotify "
-                                        "playlist "
-                                        f"**{playlist_name}**... "
-                                        f"({processed}/{total}) "
-                                        ":arrows_counterclockwise:"
+                                    title=(
+                                        f"Adding from **{playlist_name}**... "
+                                        f"({added}/{total})"
                                     ),
+                                    description=_build_track_list_description(),
                                     color=discord.Color.orange(),
                                 )
                             )
-                        except Exception:
-                            pass
-
-                    if getattr(
-                        ctx.voice_state,
-                        "first_song_played",
-                        False,
-                    ) and (start % queue_update_interval == 0):
-                        try:
-                            await ctx.voice_state.update_queue_message()
                         except Exception:
                             pass
 
@@ -656,17 +613,15 @@ class Music(commands.Cog):
                     f"**{playlist_name}** ({added} tracks)."
                 )
                 try:
-                    await ctx.voice_state.update_queue_message()
+                    await ctx.voice_state.update_now_playing_embed()
                 except Exception:
                     pass
 
                 try:
                     await loading_message.edit(
                         embed=discord.Embed(
-                            description=(
-                                f"Added **{added}** track(s) from Spotify "
-                                f"playlist **{playlist_name}**."
-                            ),
+                            title=f"Added {added} tracks from **{playlist_name}**",
+                            description=_build_track_list_description(),
                             color=discord.Color.green(),
                         )
                     )

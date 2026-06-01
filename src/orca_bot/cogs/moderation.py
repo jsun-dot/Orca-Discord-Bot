@@ -7,8 +7,7 @@ from discord.ext import commands
 
 KICK_COMMAND_NAME = "kick"
 KICK_COMMAND_DESCRIPTION = (
-    "Kick a member from your server. You must have permissions to use "
-    "this command."
+    "Kick a member from your server. You must have permissions to use this command."
 )
 KICK_COMMAND_OPTIONS = [
     {
@@ -40,12 +39,9 @@ CHANGE_ROLE_COMMAND_OPTIONS = [
 ]
 CHANGE_ROLE_PERMISSION_MESSAGE = "You do not have permission to modify roles."
 BOT_ROLE_PERMISSION_MESSAGE = "I do not have permission to modify roles."
-CHANGE_ROLE_SUCCESS_MESSAGE = (
-    "{display_name}'s role has been changed to {role}."
-)
+CHANGE_ROLE_SUCCESS_MESSAGE = "{display_name}'s role has been changed to {role}."
 CHANGE_ROLE_FORBIDDEN_MESSAGE = (
-    "I'm sorry, I couldn't change that user's role due to insufficient "
-    "permissions."
+    "I'm sorry, I couldn't change that user's role due to insufficient permissions."
 )
 
 log = logging.getLogger(__name__)
@@ -137,10 +133,7 @@ class Moderation(commands.Cog):
         assert ctx.guild is not None
 
         guild_member = ctx.guild.me
-        if (
-            guild_member is None
-            or not guild_member.guild_permissions.manage_roles
-        ):
+        if guild_member is None or not guild_member.guild_permissions.manage_roles:
             await ctx.send(BOT_ROLE_PERMISSION_MESSAGE)
             return
 

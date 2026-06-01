@@ -20,20 +20,15 @@ from orca_bot.utils.yt_source import Song, YTDLSource
 PLAYBACK_TIMEOUT_SEC = 1800
 INACTIVITY_TIMEOUT_SEC = 1800
 VOICE_RECONNECT_CHECK_INTERVAL_SEC = 0.5
-DEFAULT_VOLUME = 0.3
+DEFAULT_VOLUME = 0.1
 QUEUE_ITEMS_PER_PAGE = 10
 PERCENTAGE_MULTIPLIER = 100
 ACTION_FIELD_NAME = "Action:"
 QUEUE_EMPTY_DESCRIPTION = "**Empty queue.**"
 QUEUE_DESCRIPTION_TEMPLATE = "**{count} track(s):**\n\n{queue}"
 QUEUE_FOOTER_TEMPLATE = "Viewing page {page}/{pages}"
-QUEUE_UPDATED_MESSAGE = "Queue updated."
-QUEUE_STOPPED_MESSAGE = (
-    "Bot disconnected from the voice channel. Stopping playback."
-)
-QUEUE_INACTIVITY_MESSAGE = (
-    "Bot disconnected from the voice channel due to inactivity."
-)
+QUEUE_STOPPED_MESSAGE = "Bot disconnected from the voice channel. Stopping playback."
+QUEUE_INACTIVITY_MESSAGE = "Bot disconnected from the voice channel due to inactivity."
 INACTIVITY_CHANNEL_NOTICE = "Leaving voice channel due to inactivity."
 ADD_TO_QUEUE_MESSAGE = "Added to queue: **{title}**"
 
@@ -128,9 +123,7 @@ class VoiceState:
         await self.add_song_message(song)
 
         if not self.audio_player or self.audio_player.done():
-            self.audio_player = asyncio.ensure_future(
-                self.audio_player_task()
-            )
+            self.audio_player = asyncio.ensure_future(self.audio_player_task())
 
     def __del__(self) -> None:
         """Cancel the audio task when the voice state is garbage collected."""
@@ -224,6 +217,8 @@ class VoiceState:
                 )
 
             self.current.source.volume = self._volume
+            if hasattr(self.voice, "encoder") and self.voice.encoder:
+                self.voice.encoder.set_bitrate(128)
             self.voice.play(self.current.source, after=self.play_next_song)
             self.last_activity = datetime.now(timezone.utc)
             self.first_song_played = True
@@ -318,33 +313,21 @@ class VoiceState:
         current_page = max(0, min(page - 1, len(embeds) - 1))
         view = QueuePages(self._ctx, embeds, current_page=current_page)
 
+        if self.queue_message is not None:
+            try:
+                await self.queue_message.delete()
+            except Exception:
+                pass
+            self.queue_message = None
+
         try:
-            if self.queue_message is not None:
-                self.queue_message = await self.queue_message.edit(
-                    embed=embeds[current_page],
-                    view=view,
-                )
-            else:
-                self.queue_message = await channel.send(
-                    embed=embeds[current_page],
-                    view=view,
-                )
-        except discord.NotFound:
             self.queue_message = await channel.send(
                 embed=embeds[current_page],
                 view=view,
             )
         except discord.HTTPException as error:
-            if error.status == 401:
-                log.error(
-                    "Invalid Webhook Token. Unable to edit queue message."
-                )
-                self.queue_message = await channel.send(
-                    embed=embeds[current_page],
-                    view=view,
-                )
-            else:
-                raise
+            log.error("Failed to send queue message: %s", error)
+            return None
 
         view.message = self.queue_message
         return self.queue_message
@@ -364,12 +347,7 @@ class VoiceState:
         self.songs.clear()
 
         channel = self.text_channel or self._ctx.channel
-        if (
-            channel_notice
-            and channel
-            and self.voice
-            and self.voice.is_connected()
-        ):
+        if channel_notice and channel and self.voice and self.voice.is_connected():
             try:
                 await channel.send(channel_notice)
             except Exception:
@@ -412,11 +390,6 @@ class VoiceState:
     async def ensure_queue_message_valid(self) -> None:
         """Recreate the queue message if the previous one was lost."""
 
-        if self.queue_message is not None:
-            try:
-                await self.queue_message.edit(content=QUEUE_UPDATED_MESSAGE)
-            except discord.NotFound:
-                self.queue_message = None
         await self.update_queue_message()
 
     async def update_now_playing_embed(
@@ -439,28 +412,29 @@ class VoiceState:
         channel = self._get_now_playing_channel()
         view = NowPlayingButtons(self._ctx)
 
-        try:
-            if self.now_playing_message is not None:
-                self.now_playing_message = await channel.fetch_message(
-                    self.now_playing_message.id
-                )
-                self.now_playing_message = await self.now_playing_message.edit(
-                    embed=embed,
-                    view=view,
-                )
-            else:
-                self.now_playing_message = await channel.send(
-                    embed=embed,
-                    view=view,
-                )
-        except discord.HTTPException as error:
-            log.error("Failed to edit message: %s", error)
-            self.now_playing_message = await channel.send(
-                embed=embed,
-                view=view,
-            )
+        if _interaction is not None and self.now_playing_message is not None:
+            try:
+                await self.now_playing_message.edit(embed=embed, view=view)
+                view.message = self.now_playing_message
+                self.action_message = ""
+                return
+            except Exception:
+                self.now_playing_message = None
 
-        view.message = self.now_playing_message
+        if self.now_playing_message is not None:
+            try:
+                await self.now_playing_message.delete()
+            except Exception:
+                pass
+            self.now_playing_message = None
+
+        try:
+            self.now_playing_message = await channel.send(embed=embed, view=view)
+        except discord.HTTPException as error:
+            log.error("Failed to send now playing message: %s", error)
+
+        if self.now_playing_message:
+            view.message = self.now_playing_message
         self.action_message = ""
 
     async def inactivity_timer(self) -> None:
@@ -482,10 +456,7 @@ class VoiceState:
                         queue_message_text=QUEUE_INACTIVITY_MESSAGE,
                         channel_notice=INACTIVITY_CHANNEL_NOTICE,
                     )
-                    log.info(
-                        "Inactivity timer ended: Bot stopped due to "
-                        "inactivity."
-                    )
+                    log.info("Inactivity timer ended: Bot stopped due to inactivity.")
                 else:
                     log.info(
                         "Inactivity timer ended: Bot was not connected to a "
@@ -505,8 +476,6 @@ class VoiceState:
             return
 
         try:
-            await channel.send(
-                ADD_TO_QUEUE_MESSAGE.format(title=song.source.title)
-            )
+            await channel.send(ADD_TO_QUEUE_MESSAGE.format(title=song.source.title))
         except Exception:
             pass

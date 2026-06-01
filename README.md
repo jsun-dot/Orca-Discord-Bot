@@ -13,11 +13,11 @@ Orca is a Discord bot centered on music playback, queue management, and a small 
 
 ## Project Docs
 
-- [CHANGELOG.md](CHANGELOG.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [SECURITY.md](SECURITY.md)
-- [PRIVACY.md](PRIVACY.md)
-- [ACCEPTABLE_USE.md](ACCEPTABLE_USE.md)
+- [CHANGELOG.md](docs/CHANGELOG.md)
+- [CONTRIBUTING.md](docs/CONTRIBUTING.md)
+- [SECURITY.md](docs/SECURITY.md)
+- [PRIVACY.md](docs/PRIVACY.md)
+- [ACCEPTABLE_USE.md](docs/ACCEPTABLE_USE.md)
 
 ## Current Command Style
 
@@ -107,13 +107,13 @@ py -m venv .venv
 ### 3. Install dependencies
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
-For local development, an editable install is the cleanest option:
+For development (includes pytest, ruff, and mypy):
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ### 4. Install FFmpeg
@@ -148,7 +148,7 @@ SPOTIPY_CLIENT_SECRET=your_spotify_client_secret
 - `DISCORD_TOKEN` is required. The bot will exit on startup if it is missing.
 - `.env` files are auto-loaded through `python-dotenv`.
 - Spotify credentials are only required when using Spotify playlist URLs.
-- The bot writes logs to `log_YYYY-MM-DD.txt` in the project root.
+- The bot writes logs to `logs/log_YYYY-MM-DD.txt`.
 
 ## Running the Bot
 
@@ -187,6 +187,7 @@ On startup, the bot:
 .
 |-- main.py
 |-- pyproject.toml
+|-- Makefile
 |-- orca_bot/
 |   |-- __main__.py
 |   |-- bot.py
@@ -199,6 +200,16 @@ On startup, the bot:
 |       |-- views.py
 |       |-- voice_state.py
 |       `-- yt_source.py
+|-- tests/
+|   |-- test_bot_runtime.py
+|   |-- test_music_utils.py
+|   `-- test_spotify_playlist.py
+|-- docs/
+|   |-- CHANGELOG.md
+|   |-- CONTRIBUTING.md
+|   |-- SECURITY.md
+|   |-- PRIVACY.md
+|   `-- ACCEPTABLE_USE.md
 `-- .github/
     |-- CODEOWNERS
     `-- workflows/
@@ -207,15 +218,43 @@ On startup, the bot:
 
 ## Development
 
-Main branch protection is now backed by a GitHub Actions workflow and `CODEOWNERS`.
+### Makefile
 
-The current CI check is a syntax compile pass equivalent to:
+A `Makefile` is included for common development tasks. Run `make help` to list all available targets:
 
-```bash
-python3 -m compileall -q main.py orca_bot
+```
+Usage: make <target>
+
+Targets:
+  install   Install the package into the venv
+  dev       Install the package with dev dependencies (includes pytest)
+  test      Run the full test suite
+  run       Start the bot
+  clean     Remove __pycache__, egg-info, and dist directories
 ```
 
-If you are opening a PR, run that locally before pushing.
+For a first-time dev setup:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+make dev
+```
+
+### CI
+
+Main branch protection is now backed by a GitHub Actions workflow and `CODEOWNERS`.
+
+The CI runs on every PR and push to `main`:
+
+1. Compiles all Python sources (`main.py` and `src/orca_bot`)
+2. Runs the full test suite (`pytest`)
+
+Before opening a PR, verify locally with:
+
+```bash
+make test
+```
 
 ## Troubleshooting
 
