@@ -13,16 +13,16 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-Install the project in editable mode:
+Install the project with dev dependencies:
 
 ```bash
-pip install -e .
+make dev
 ```
 
-If you prefer, you can also install direct runtime dependencies with:
+Or directly:
 
 ```bash
-pip install -r requirements.txt
+pip install ".[dev]"
 ```
 
 ## Local Prerequisites
@@ -34,7 +34,13 @@ pip install -r requirements.txt
 
 ## Running the Bot
 
-From the repo root, any of these entry points work:
+```bash
+make run
+# or with debug logging
+make run-debug
+```
+
+From the repo root directly:
 
 ```bash
 orca-bot
@@ -44,13 +50,14 @@ python3 main.py
 
 ## CI Checks
 
-Current CI is intentionally small. Before opening a PR, run the same syntax compile step used by GitHub Actions:
+Before opening a PR, run the full local check:
 
 ```bash
-python3 -m compileall -q main.py orca_bot
+make test
+make lint
 ```
 
-If you change runtime behavior, also do the relevant manual checks locally. For example:
+CI runs on every PR and will fail if either step fails. If you change runtime behavior, also do the relevant manual checks locally. For example:
 
 - music playback and queue commands
 - now-playing button interactions
