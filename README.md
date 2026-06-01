@@ -107,13 +107,13 @@ py -m venv .venv
 ### 3. Install dependencies
 
 ```bash
-pip install -e .
+pip install .
 ```
 
 For development (includes pytest, ruff, and mypy):
 
 ```bash
-pip install -e ".[dev]"
+pip install ".[dev]"
 ```
 
 ### 4. Install FFmpeg
@@ -156,6 +156,26 @@ SPOTIPY_CLIENT_SECRET=your_spotify_client_secret
 orca-bot
 ```
 
+Or with the Makefile:
+
+```bash
+make run
+```
+
+Available flags:
+
+```
+orca-bot --help       Show usage, options, env vars, and console commands
+orca-bot --version    Show the installed version
+orca-bot --debug      Enable debug logging (includes audio stream info)
+```
+
+For debug startup via Make:
+
+```bash
+make run-debug
+```
+
 You can also run it directly from source:
 
 ```bash
@@ -177,8 +197,9 @@ On startup, the bot:
 ## Playback Notes
 
 - `play` accepts plain search text and direct URLs supported by `yt-dlp`
-- Spotify support is currently focused on playlist URLs
-- Queue and now-playing messages are interactive and include playback controls
+- Spotify playlist support requires the app owner's Spotify account to have an active Premium subscription
+- Queue and now-playing messages are interactive and include playback controls usable by any server member
+- The Now Playing embed always appears at the bottom of the channel when a new song starts
 - The bot must be in the same voice channel as the requesting user for music commands
 
 ## Project Structure
@@ -188,22 +209,25 @@ On startup, the bot:
 |-- main.py
 |-- pyproject.toml
 |-- Makefile
-|-- orca_bot/
-|   |-- __main__.py
-|   |-- bot.py
-|   |-- cogs/
-|   |   |-- moderation.py
-|   |   |-- music.py
-|   |   |-- ping.py
-|   |   `-- starter.py
-|   `-- utils/
-|       |-- views.py
-|       |-- voice_state.py
-|       `-- yt_source.py
+|-- src/
+|   `-- orca_bot/
+|       |-- __main__.py
+|       |-- bot.py
+|       |-- cogs/
+|       |   |-- moderation.py
+|       |   |-- music.py
+|       |   |-- ping.py
+|       |   `-- starter.py
+|       `-- utils/
+|           |-- views.py
+|           |-- voice_state.py
+|           `-- yt_source.py
 |-- tests/
 |   |-- test_bot_runtime.py
 |   |-- test_music_utils.py
-|   `-- test_spotify_playlist.py
+|   |-- test_spotify_playlist.py
+|   `-- test_starter.py
+|-- logs/
 |-- docs/
 |   |-- CHANGELOG.md
 |   |-- CONTRIBUTING.md
@@ -226,11 +250,15 @@ A `Makefile` is included for common development tasks. Run `make help` to list a
 Usage: make <target>
 
 Targets:
-  install   Install the package into the venv
-  dev       Install the package with dev dependencies (includes pytest)
-  test      Run the full test suite
-  run       Start the bot
-  clean     Remove __pycache__, egg-info, and dist directories
+  install    Install the package into the venv
+  dev        Install the package with dev dependencies (pytest, ruff, mypy)
+  test       Run the full test suite
+  lint       Run ruff linter
+  format     Apply ruff formatter
+  typecheck  Run mypy static type checker
+  run        Start the bot
+  run-debug  Start the bot with debug logging enabled
+  clean      Remove __pycache__, egg-info, and dist directories
 ```
 
 For a first-time dev setup:

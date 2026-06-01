@@ -4,7 +4,36 @@ This file tracks published versions of Orca Discord Bot. For the full release hi
 
 ## Unreleased
 
-- No unreleased entries yet.
+### Fixed
+- Spotify playlist playback now enqueues tracks sequentially so the first song starts playing immediately instead of waiting for an entire batch to resolve (issue #15).
+- Spotify 403 errors now surface a user-friendly embed instead of a raw exception. App owner requires an active Spotify Premium subscription.
+- FFmpeg stderr noise (`No trailing CRLF`, TLS reconnection messages) fully suppressed.
+- Now Playing embed always appears at the bottom of the channel when a new song starts and edits in place when buttons are used.
+- Queue embed always deletes and resends on update to prevent stale state.
+- Now Playing buttons are usable by any server member, not just the user who triggered playback.
+- Banner emoji alignment fixed for correct terminal display width.
+- Console help text now prints after the online banner instead of before.
+- Log files now write to `logs/` instead of the project root.
+
+### Added
+- `orca-bot --help` / `-h`: prints usage, options, environment variables, and console commands.
+- `orca-bot --version` / `-v` / `-V`: prints the installed package version.
+- `orca-bot --debug`: enables DEBUG logging including audio stream bitrate, format, and sample rate for each resolved track.
+- `make run-debug` target for debug startup.
+- `make lint`, `make format`, and `make typecheck` targets backed by ruff and mypy.
+- Spotify playlist loading shows a live orange embed listing tracks as they are added, turning green when complete.
+- 10-band graphic EQ applied via FFmpeg for improved audio character.
+- Opus encoder set to 128 kbps for higher output quality.
+- yt-dlp format selection now prefers opus/vorbis streams over mp4.
+- 34 new unit tests across `test_spotify_playlist.py`, `test_starter.py`, and expansions to existing test files (55 total).
+
+### Changed
+- Source moved to `src/` layout (`src/orca_bot/`).
+- Policy and governance docs moved to `docs/`.
+- `requirements.txt` removed; dependencies are fully defined in `pyproject.toml`.
+- ruff and mypy added as dev dependencies.
+- CI now installs dependencies and runs the full test suite in addition to the syntax compile check.
+- Default playback volume lowered to 10% (`DEFAULT_VOLUME = 0.1`) to match typical user-adjusted levels.
 
 ## [v0.2.0](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.2.0) - 2026-05-06
 
