@@ -4,6 +4,10 @@ This file tracks published versions of Orca Discord Bot. For the full release hi
 
 ## Unreleased
 
+- No unreleased entries yet.
+
+## [v0.3.0](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.3.0) - 2026-05-31
+
 ### Fixed
 - Spotify playlist playback now enqueues tracks sequentially so the first song starts playing immediately instead of waiting for an entire batch to resolve (issue #15).
 - Spotify 403 errors now surface a user-friendly embed instead of a raw exception. App owner requires an active Spotify Premium subscription.
