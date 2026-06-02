@@ -52,6 +52,14 @@ Aliases currently supported in code:
 ### Utility
 
 - `/ping`
+- `/userinfo [@user]`
+- `/serverinfo`
+- `/avatar [@user]`
+- `/8ball <question>`
+- `/coinflip`
+- `/choose <option1> <option2> [option3] [option4] [option5]`
+- `/roll [NdN]`
+- `/roleinfo <role>`
 
 ### Moderation
 
@@ -226,7 +234,8 @@ On startup, the bot:
 |   |-- test_bot_runtime.py
 |   |-- test_music_utils.py
 |   |-- test_spotify_playlist.py
-|   `-- test_starter.py
+|   |-- test_starter.py
+|   `-- test_utility.py
 |-- logs/
 |-- docs/
 |   |-- CHANGELOG.md

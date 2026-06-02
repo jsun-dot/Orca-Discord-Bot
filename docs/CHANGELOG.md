@@ -6,6 +6,18 @@ This file tracks published versions of Orca Discord Bot. For the full release hi
 
 - No unreleased entries yet.
 
+## [v0.4.0](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.4.0) - 2026-06-01
+
+### Added
+- `/userinfo [@user]` — displays display name, user ID, account creation date, server join date, and roles in an embed.
+- `/serverinfo` — displays server name, ID, owner, member count, channel count, role count, boost level, and creation date.
+- `/avatar [@user]` — displays a member's full-size avatar in an embed.
+- `/8ball <question>` — magic 8 ball with green/grey/red embed colour based on response type.
+- `/coinflip` — flips a coin and returns heads or tails.
+- `/choose <option1> <option2> [option3-5]` — picks randomly from up to five options.
+- `/roll [NdN]` — rolls dice using standard NdN notation (e.g. `2d6`), shows individual rolls and total. Defaults to `1d6`.
+- `/roleinfo <role>` — displays role colour, ID, member count, hoisted/mentionable/managed status, and creation date. Embed uses the role's own colour.
+
 ## [v0.3.1](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.3.1) - 2026-05-31
 
 ### Fixed
