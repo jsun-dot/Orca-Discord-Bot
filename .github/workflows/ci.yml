@@ -4,14 +4,16 @@ on:
   pull_request:
     branches:
       - main
+      - staging
   push:
     branches:
       - main
+      - staging
   workflow_dispatch:
 
 jobs:
   ci:
-    name: Syntax Check
+    name: Lint, Typecheck, and Test
     runs-on: ubuntu-latest
 
     steps:
@@ -28,6 +30,12 @@ jobs:
 
       - name: Compile Python sources
         run: python -m compileall -q main.py src/orca_bot
+
+      - name: Lint with ruff
+        run: python -m ruff check src/orca_bot tests
+
+      - name: Type check with mypy
+        run: python -m mypy src/orca_bot
 
       - name: Run tests
         run: python -m pytest

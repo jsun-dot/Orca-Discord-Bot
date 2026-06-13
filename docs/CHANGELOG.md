@@ -4,7 +4,24 @@ This file tracks published versions of Orca Discord Bot. For the full release hi
 
 ## Unreleased
 
-- No unreleased entries yet.
+### Added
+- `/ban <user> [delete_days] [reason]` — bans a member, with optional message deletion (0-7 days) and DM notification.
+- `/unban <user_id> [reason]` — unbans a user by Discord user ID.
+- `/timeout <user> <minutes> [reason]` — times out a member for 1-40320 minutes, with DM notification.
+- `/untimeout <user> [reason]` — removes an active timeout, with DM notification.
+- `/purge <amount> [user]` — bulk deletes messages with a confirmation prompt, optionally filtered to a specific user.
+
+### Changed
+- Moderation cog rewritten: all commands now use embed responses, optional `reason` parameters, DM the target user on kick/ban/timeout/untimeout, and write structured logs (actor, target, guild, reason).
+- `/kick` and `/changerole` rewritten to use the new embed and logging helpers. `/changerole` now toggles a role (adds if absent, removes if present) instead of only adding.
+- All moderation commands enforce strict role-hierarchy checks (actor must outrank target, bot must outrank target, server owner bypasses the actor check only).
+- `make test` now runs ruff and mypy in addition to the test suite. CI runs the same checks and now also triggers on the `staging` branch.
+
+### Fixed
+- `/changerole` no longer allows a member with Manage Roles to assign a role at or above their own highest role, closing a privilege-escalation path where Discord only validated the bot's role position and not the caller's.
+
+### Infrastructure
+- Renamed the `development` branch to `staging`, which is now the integration branch for feature work before merging to `main`.
 
 ## [v0.4.0](https://github.com/jsun-dot/Orca-Discord-Bot/releases/tag/v0.4.0) - 2026-06-01
 
