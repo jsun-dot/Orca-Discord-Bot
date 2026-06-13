@@ -54,20 +54,25 @@ Before opening a PR, run the full local check:
 
 ```bash
 make test
-make lint
 ```
 
-CI runs on every PR and will fail if either step fails. If you change runtime behavior, also do the relevant manual checks locally. For example:
+This runs ruff, mypy, and the test suite. CI runs on every PR and will fail if any step fails. If you change runtime behavior, also do the relevant manual checks locally. For example:
 
 - music playback and queue commands
 - now-playing button interactions
 - slash-command sync after startup
 - moderation commands in a test server
 
+## Branching
+
+- `staging` is the integration branch — feature and fix branches merge here first.
+- `main` only receives merges from `staging` when cutting a release.
+- Open PRs against `staging` unless you are submitting a hotfix for an already-released version.
+
 ## Pull Request Expectations
 
 - Keep changes focused and explain the user-visible impact clearly.
-- Open PRs against `main`.
+- Open PRs against `staging`.
 - Update docs when behavior, setup, or commands change.
 - Do not commit secrets, `.env` files, local virtual environments, or build artifacts.
 - Avoid committing generated files such as `__pycache__` or `.pyc` files.

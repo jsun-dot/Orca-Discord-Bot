@@ -107,7 +107,7 @@ client = commands.Bot(
     intents=intents,
     help_command=None,
 )
-client.console_help_text = CONSOLE_HELP_TEXT
+client.console_help_text = CONSOLE_HELP_TEXT  # type: ignore[attr-defined]
 _persistent_views_registered = False
 
 

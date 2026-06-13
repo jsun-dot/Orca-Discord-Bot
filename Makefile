@@ -10,7 +10,7 @@ help:
 	@echo "Targets:"
 	@echo "  install    Install the package into the venv"
 	@echo "  dev        Install the package with dev dependencies (pytest, ruff, mypy)"
-	@echo "  test       Run the full test suite"
+	@echo "  test       Run lint, typecheck, and the full test suite"
 	@echo "  lint       Run ruff linter"
 	@echo "  format     Apply ruff formatter"
 	@echo "  typecheck  Run mypy static type checker"
@@ -25,6 +25,8 @@ dev:
 	$(PIP) install ".[dev]"
 
 test:
+	$(PYTHON) -m ruff check src/orca_bot tests
+	$(PYTHON) -m mypy src/orca_bot
 	$(PYTHON) -m pytest
 
 lint:
