@@ -8,8 +8,8 @@ Orca is a Discord bot centered on music playback, queue management, and a small 
 - Spotify playlist import support
 - Queue controls with Discord button views
 - Hybrid commands: slash commands and backtick-prefixed text commands
-- Basic moderation commands
-- Simple CI on `main` via GitHub Actions
+- Moderation commands with embed responses, reason tracking, DM notifications, and role-hierarchy enforcement
+- CI on `main` and `staging` via GitHub Actions (lint, type check, tests)
 
 ## Project Docs
 
@@ -63,13 +63,27 @@ Aliases currently supported in code:
 
 ### Moderation
 
-- `/kick <user>`
+- `/kick <user> [reason]`
+- `/ban <user> [delete_days] [reason]`
+- `/unban <user_id> [reason]`
+- `/timeout <user> <minutes> [reason]`
+- `/untimeout <user> [reason]`
+- `/purge <amount> [user]`
 - `/changerole <user> <role>`
+
+All moderation commands respond with embeds, support an optional `reason`
+where applicable, DM the target user (kick/ban/timeout/untimeout), and log
+the action with the acting moderator, target, guild, and reason. Actions are
+blocked if the target outranks the caller, outranks the bot, or is the
+server owner.
 
 Permission-sensitive commands:
 
 - `pause` and `resume` require `Manage Server`
 - `kick` requires `Kick Members`
+- `ban` and `unban` require `Ban Members`
+- `timeout` and `untimeout` require `Moderate Members`
+- `purge` requires `Manage Messages`
 - `changerole` requires `Manage Roles`
 
 ## Requirements
@@ -232,6 +246,7 @@ On startup, the bot:
 |           `-- yt_source.py
 |-- tests/
 |   |-- test_bot_runtime.py
+|   |-- test_moderation.py
 |   |-- test_music_utils.py
 |   |-- test_spotify_playlist.py
 |   |-- test_starter.py
@@ -261,7 +276,7 @@ Usage: make <target>
 Targets:
   install    Install the package into the venv
   dev        Install the package with dev dependencies (pytest, ruff, mypy)
-  test       Run the full test suite
+  test       Run lint, typecheck, and the full test suite
   lint       Run ruff linter
   format     Apply ruff formatter
   typecheck  Run mypy static type checker
@@ -280,12 +295,14 @@ make dev
 
 ### CI
 
-Main branch protection is now backed by a GitHub Actions workflow and `CODEOWNERS`.
+Branch protection is backed by a GitHub Actions workflow and `CODEOWNERS`.
 
-The CI runs on every PR and push to `main`:
+The CI runs on every PR and push to `main` and `staging`:
 
 1. Compiles all Python sources (`main.py` and `src/orca_bot`)
-2. Runs the full test suite (`pytest`)
+2. Lints with ruff
+3. Type checks with mypy
+4. Runs the full test suite (`pytest`)
 
 Before opening a PR, verify locally with:
 
